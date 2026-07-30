@@ -1,4 +1,4 @@
-<title>Jumps &amp; Commitments — a mechanism-hunting campaign</title>
+<title>Jump+Flow</title>
 <style>
 :root{
   --bg:#101216; --panel:#181b21; --panel2:#1e222a; --line:#2a2f39;
@@ -23,7 +23,7 @@ body{background:var(--bg);color:var(--ink);
 header.hero h1{font-size:1.75rem;margin:0 0 8px;font-weight:800;letter-spacing:.01em;text-wrap:balance;line-height:1.3}
 header.hero .sub{color:var(--ink2);font-size:.95rem;max-width:68ch;margin:0}
 header.hero .meta{color:var(--ink3);font-size:.78rem;margin-top:10px;font-family:ui-monospace,monospace}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
 .stat b{display:block;font-size:1.25rem;font-family:ui-monospace,monospace;color:var(--flow)}
@@ -91,21 +91,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--flow);outline-o
 <div class="wrap">
 
 <header class="hero">
-  <h1>Jumps &amp; Commitments: between gradual denoising and block-wise commitment</h1>
-  <p class="sub">Results brief from a mechanism-hunting campaign: an analytic jump corrector across CIFAR-10 / ImageNet-32 / F5-TTS speech, how factorization destroys correlations, a substitute-or-complement law of time discretization, and an unclaimed family of "continuous commitment paths".</p>
-  <p class="meta">2026-07 · reproducing &amp; extending Generator Matching (ICLR'25) · every number traces to internal reports; evidence grades are labeled inline</p>
+  <h1>Jump+Flow</h1>
 </header>
 
 <div class="stats">
   <div class="stat"><b>3 domains</b><span>CIFAR-10 · ImageNet-32 · F5-TTS speech</span></div>
   <div class="stat"><b>90+</b><span>speech configs screened / full-set</span></div>
   <div class="stat"><b>77–90%</b><span>covariance share of factorization damage</span></div>
-  <div class="stat"><b>1 NO_GO</b><span>preregistered honest negative</span></div>
 </div>
 
 <section>
   <h2>One-minute background</h2>
-  <p>Flow matching moves every pixel <b>smoothly along a straight line</b> toward the data (gradual denoising). Generator Matching showed the same marginal probability path can instead be realized by a <b>jump process</b>: pixels don't slide — they <b>teleport</b> at an analytic rate. We reproduced this end-to-end, fixed three pitfalls the paper doesn't document, and then found the interesting part: <b>the jump benefit needs no training at all</b> — plug the flow's own denoising estimate back into the closed-form jump kernel and you get a zero-cost corrector. The rest of the campaign asks: when does that corrector actually help, and why?</p>
+  <p>Flow matching moves every pixel <b>smoothly along a straight line</b> toward the data (gradual denoising). Generator Matching showed the same marginal probability path can instead be realized by a <b>jump process</b>: pixels don't slide — they <b>teleport</b> at an analytic rate. We reproduced this end-to-end, fixed three pitfalls the paper doesn't document, and found that <b>the jump benefit needs no training</b>: plug the flow's own denoising estimate into the closed-form jump kernel and you get a zero-cost corrector. The remaining sections report when that corrector helps and when it does not.</p>
 </section>
 
 <section>
@@ -115,35 +112,35 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--flow);outline-o
 </section>
 
 <section>
-  <h2>② Joint training: the jump head crowds out the flow head</h2>
-  <p>Train flow and jump heads on a shared backbone naively and the flow head <b>degrades</b>: near the data end (t&gt;0.7) the jump-to-flow gradient ratio reaches <b>18.3×</b> (only 1.3× averaged over all t), so shared features get pulled toward the jump objective. Loss re-weighting softens the tax; <b>freezing the backbone and training the jump as a separate 10.8M-param branch removes the tax by construction</b> — jump gradients can no longer touch shared weights, so the flow head stays bit-for-bit identical to the independent baseline. Note the honest fine print: zero tax on the host is not the same as a win — sampling the superposition on top of the frozen model scored 2.526 (provisional), slightly <i>worse</i> than pure flow. The punchline sits in the next section: the <b>zero-training analytic jump</b> (closed-form kernel fed by the flow's own denoising estimate) scored <b>2.229</b> on the same protocol — <b>the computed corrector beat the trained branch</b>, overturning our initial assumption that the superposition benefit must be bought with training.</p>
+  <h2>② Separately trained, jointly trained, and computed</h2>
+  <p>Five configurations on CIFAR-10 (Euler + EDM grid unless noted): an independently trained flow; an independently trained pure-jump model; a jointly trained flow+jump superposition (MS); the joint model's flow head evaluated alone; and the independent flow with the <b>analytic (computed, zero-training) jump</b> added. The joint model's jump head was never evaluated standalone. One training measurement: near the data end (t&gt;0.7) the jump-to-flow gradient ratio reaches 18.3&times; (1.3&times; averaged over all t); the joint model's flow head scores worse than the independent flow (3.36 vs 2.43).</p>
   <div class="fig"><div id="c_joint"></div>
-  <div class="cap">Flow-head FID under different training regimes (CIFAR-10, Euler+EDM). The first and last bars are the <b>same weights</b> — 2.43 vs 2.389 is two evaluation runs of one identical flow model (sampling-seed variance ≈ ±0.04), shown to verify preservation, not an improvement. Values provisional (terminal-none config).</div></div>
+  <div class="cap">FID, lower is better. &dagger; joint-MS value predates the terminal-interval sampler fix (historical). "flow + analytic jump" is from the formal fixed re-run at NFE 200 (its own paired pure-flow control: 2.321); other rows at NFE 100. Independent jump uses terminal-mean (unaffected by the fix).</div></div>
 </section>
 
 <section>
   <h2>③ Substitute or complement? Depends on where the grid stacks its steps</h2>
-  <p>The jump corrector's firepower is concentrated at the <b>data end</b> — the (1−t)⁻³ stiffness in its kernel. An EDM grid stacks its steps at the data end too, so grid and corrector <b>compete for the same error</b> and the corrector goes redundant. A uniform grid leaves the data end unresolved — the corrector <b>feasts</b>, beats second-order Heun, and even stacks with it.</p>
+  <p>The jump corrector's firepower is concentrated at the <b>data end</b> — the (1−t)⁻³ stiffness in its kernel. An EDM grid stacks its steps at the data end too, so grid and corrector address the same error and the corrector's margin shrinks to ≈1%. A uniform grid leaves the data end unresolved and the margin grows to 14%. ImageNet-32 marks the limit of the pattern: only the coarsest grid improves; finer grids reverse sign.</p>
   <div class="duo">
-    <div class="fig"><div id="c_edm"></div><div class="cap">Good grid (EDM): jump = Heun = 2.229, ceiling reached; at NFE 50 the corrector's own execution error flips it negative (2.85→3.05).</div></div>
-    <div class="fig"><div id="c_uni"></div><div class="cap">Bad grid (uniform, 200 steps): jump takes 2.94→2.51, beating Heun (2.59); Heun+jump stacks to 2.355.</div></div>
+    <div class="fig"><div id="c_edm"></div><div class="cap">CIFAR-10, formal fixed-sampler re-run (seed 0, TorchMetrics FID). Paired gains: −0.020 (Euler EDM200), −0.026 (Heun2 EDM100, matched NFE), −0.428 (Euler uniform200). Uniform+jump (2.58) is still worse than plain flow on EDM (2.32).</div></div>
+    <div class="fig"><div id="c_uni"></div><div class="cap">ImageNet-32, formal re-run (CleanFID; values not comparable to CIFAR). Coarse uniform-25 improves by −0.044; uniform-200 (+0.871) and EDM-200 (+1.267) get worse.</div></div>
   </div>
-  <div class="note">Evidence grade: CIFAR numbers are internal measurements (terminal-none config, provisional) — third decimals pending a re-run, but the <b>qualitative substitute/complement conclusion is robust</b>.</div>
+  <div class="note">Formal re-run: 12 locked runs, fixed sampler, single sampling seed. Reading: the corrector compensates bad time discretization; it shows no consistent cross-model advantage. Grid/solver choice remains the larger effect — switching uniform→EDM alone improves CIFAR flow by 0.69, ~34× the EDM-grid jump effect.</div>
 </section>
 
 <section>
   <h2>④ The factorization poison: covariance carries 77–90% of the damage</h2>
   <p>Jump destinations are sampled per-pixel independently → marginals stay correct, <b>joint structure gets shredded</b>. Decomposing the FID damage into mean vs. covariance terms:</p>
   <div class="fig"><div id="c_cov"></div>
-  <div class="cap">Under both grids the covariance term dominates the damage; on texture-rich data (ImageNet-32) per-unit toxicity is ~6× higher. This is the continuous-space twin of the dimensional-correlation problem in discrete-diffusion distillation (Hayakawa et al., ICML'25).</div></div>
+  <div class="cap">Under both grids the covariance term dominates the damage; on texture-rich data (ImageNet-32) per-unit toxicity is ~6× higher. This is the continuous-space twin of the dimensional-correlation problem in discrete-diffusion distillation (Hayakawa et al., ICML'25). Measured with the pre-fix sampler; the decomposition shares are provisional.</div></div>
 </section>
 
 <section>
-  <h2>⑤ The speech mirror: a cliff-edge signal, and an honest NO_GO</h2>
+  <h2>⑤ Speech (F5-TTS): exploratory signal and its replication test</h2>
   <p>Transplanting the corrector to F5-TTS (mel spectrograms) reveals a mirror image: speech concentrates its difficulty at the <b>noise end</b> (choosing content), so sway sampling (which stacks steps toward the noise end) and the jump corrector act on opposite ends. Sway's usable floor is 5 steps, with a cliff between 5 and 4:</p>
   <div class="fig"><div id="c_cliff"></div>
   <div class="cap">WER % (log scale) vs. sampling steps (NFE). Exploratory phase: at the cliff (NFE 5), adding the jump improved WER in the same direction across three seeds (2.65→2.50).</div></div>
-  <div class="note"><b>But the preregistered replication failed.</b> Under a leakage-free protocol (train-split-only statistics, locked seeds, preregistered GO/NO_GO gates), one of three fixed seed pairs reversed and the pooled improvement (0.046 pp) fell short of the 0.1 pp gate → formal <b>NO_GO</b>. The exploratory win evaporated under a clean protocol. We count this negative result — and the audit discipline that produced it — among the campaign's most valuable outcomes.</div>
+  <div class="note">A preregistered replication on a leakage-free dev protocol (train-split-only statistics, locked seed pairs, corrected transcript casing) did not confirm this: per-pair ΔWER −0.013 / −0.313 / +0.189 pp; pooled −0.046 pp against a preregistered −0.1 pp threshold. The exploratory improvement did not replicate.</div>
 </section>
 
 <section>
@@ -223,9 +220,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--flow);outline-o
 </section>
 
 <hr class="sep">
-<footer>
-  <b>Honest boundaries.</b> CIFAR numbers are provisional (terminal-none config). The exploratory speech gain failed preregistered replication (NO_GO). No granularity variant (gsway / block-annealing / adaptive) stably beat the baseline. "Continuous commitment paths" is a literature-verified gap and a proposal — not yet a validated result. Full reports: flow_matching/REPRO_REPORT.md · F5-TTS/F5_JUMP_REPORT.md (audit revision) · RESEARCH_MAP.md. Built on: Generator Matching (arXiv 2410.20587) · F5-TTS · EPSS · GMFlow (2504.05304). 2026-07.
-</footer>
+<footer>Generator Matching (arXiv 2410.20587) · F5-TTS · EPSS · GMFlow (arXiv 2504.05304) · 2026-07</footer>
 
 </div>
 
@@ -296,17 +291,22 @@ function drawAllCharts(){
     {l:'as-published\\nrepro',v:13.35,c:'--mark'},{l:'+terminal\\nfix',v:6.48,c:'--commit'},{l:'+EDM\\ngrid',v:4.39,c:'--flow'}],
     {ymin:0,ymax:15,grid:[5,10,15],ref:4.23,refLabel:'paper 4.23',title:'Pure-jump model FID (CIFAR-10)',dp:2});
   barChart(document.getElementById('c_joint'),[
-    {l:'independent\\nflow',v:2.43,c:'--flow'},{l:'joint\\n(jlw=1.0)',v:3.64,c:'--mark'},
-    {l:'re-weighted\\n(jlw=0.1)',v:3.36,c:'--commit'},{l:'frozen bkbn, α=1\\n(same weights re-eval)',v:2.389,c:'--flow'}],
-    {ymin:2.0,ymax:4.0,grid:[2.5,3.0,3.5],title:'Flow-head FID under joint training',dp:2});
+    {l:'independent\nflow',v:2.43,c:'--flow'},
+    {l:'independent\njump-only',v:4.39,c:'--mark'},
+    {l:'joint MS\n(flow+jump)†',v:3.00,c:'--commit'},
+    {l:'joint:\nflow head alone',v:3.36,c:'--ink3'},
+    {l:'flow +\nanalytic jump',v:2.30,c:'--flow'}],
+    {ymin:2.0,ymax:4.6,grid:[2.5,3.0,3.5,4.0,4.5],title:'Training regimes, FID (CIFAR-10)',dp:2});
   barChart(document.getElementById('c_edm'),[
-    {l:'Euler\\n@200',v:2.308,c:'--flow'},{l:'+jump\\n@200',v:2.229,c:'--commit'},{l:'Heun\\n@200',v:2.229,c:'--ink3'},
-    {l:'Euler\\n@50',v:2.849,c:'--flow'},{l:'+jump\\n@50',v:3.048,c:'--mark'}],
-    {ymin:2.1,ymax:3.2,grid:[2.2,2.6,3.0],title:'EDM grid → substitute (FID ↓)'});
+    {l:'Euler\nEDM200',v:2.321,c:'--flow'},{l:'+jump',v:2.301,c:'--commit'},
+    {l:'Heun2\nEDM100',v:2.264,c:'--flow'},{l:'+jump',v:2.238,c:'--commit'},
+    {l:'Euler\nuni200',v:3.009,c:'--flow'},{l:'+jump',v:2.581,c:'--commit'}],
+    {ymin:2.1,ymax:3.2,grid:[2.2,2.6,3.0],title:'CIFAR-10: paired control vs +jump (FID ↓)'});
   barChart(document.getElementById('c_uni'),[
-    {l:'Euler',v:2.944,c:'--flow'},{l:'+churn',v:2.980,c:'--ink3'},{l:'+jump',v:2.512,c:'--commit'},
-    {l:'Heun',v:2.589,c:'--ink3'},{l:'Heun\\n+jump',v:2.355,c:'--commit'}],
-    {ymin:2.1,ymax:3.2,grid:[2.2,2.6,3.0],title:'Uniform grid → complement (FID ↓)'});
+    {l:'uni25',v:7.442,c:'--flow'},{l:'+jump',v:7.398,c:'--commit'},
+    {l:'uni200',v:5.800,c:'--flow'},{l:'+jump',v:6.671,c:'--mark'},
+    {l:'EDM200',v:7.053,c:'--flow'},{l:'+jump',v:8.320,c:'--mark'}],
+    {ymin:5.4,ymax:8.8,grid:[6,7,8],title:'ImageNet-32: paired control vs +jump (FID ↓)'});
   stackChart(document.getElementById('c_cov'),[
     {l:'EDM grid (ΔFID)',mean:0.32,cov:1.06},
     {l:'uniform grid (ΔFID)',mean:0.10,cov:0.83}]);
