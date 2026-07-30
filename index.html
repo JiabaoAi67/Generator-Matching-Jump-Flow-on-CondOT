@@ -116,9 +116,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--flow);outline-o
 
 <section>
   <h2>② Joint training: the jump head crowds out the flow head</h2>
-  <p>Train flow and jump heads on a shared backbone naively and the flow head <b>degrades</b>: near the data end (t&gt;0.7) the jump-to-flow gradient ratio reaches <b>18.3×</b> (only 1.3× averaged over all t), so shared features get pulled toward the jump objective. Loss re-weighting softens the tax; <b>freezing the backbone and training the jump as a separate 10.8M-param branch removes it entirely</b> — the flow head stays bit-for-bit identical to the independent baseline.</p>
+  <p>Train flow and jump heads on a shared backbone naively and the flow head <b>degrades</b>: near the data end (t&gt;0.7) the jump-to-flow gradient ratio reaches <b>18.3×</b> (only 1.3× averaged over all t), so shared features get pulled toward the jump objective. Loss re-weighting softens the tax; <b>freezing the backbone and training the jump as a separate 10.8M-param branch removes the tax by construction</b> — jump gradients can no longer touch shared weights, so the flow head stays bit-for-bit identical to the independent baseline. Note the honest fine print: zero tax on the host is not the same as a win — sampling the superposition on top of the frozen model scored 2.526 (provisional), slightly <i>worse</i> than pure flow.</p>
   <div class="fig"><div id="c_joint"></div>
-  <div class="cap">Flow-head FID under different training regimes (CIFAR-10, Euler+EDM). Joint training taxes the host; a frozen-backbone jump branch is a zero-tax add-on. Values marked provisional (terminal-none config).</div></div>
+  <div class="cap">Flow-head FID under different training regimes (CIFAR-10, Euler+EDM). The first and last bars are the <b>same weights</b> — 2.43 vs 2.389 is two evaluation runs of one identical flow model (sampling-seed variance ≈ ±0.04), shown to verify preservation, not an improvement. Values provisional (terminal-none config).</div></div>
 </section>
 
 <section>
@@ -297,7 +297,7 @@ function drawAllCharts(){
     {ymin:0,ymax:15,grid:[5,10,15],ref:4.23,refLabel:'paper 4.23',title:'Pure-jump model FID (CIFAR-10)',dp:2});
   barChart(document.getElementById('c_joint'),[
     {l:'independent\\nflow',v:2.43,c:'--flow'},{l:'joint\\n(jlw=1.0)',v:3.64,c:'--mark'},
-    {l:'re-weighted\\n(jlw=0.1)',v:3.36,c:'--commit'},{l:'frozen backbone\\n+ jump branch',v:2.389,c:'--flow'}],
+    {l:'re-weighted\\n(jlw=0.1)',v:3.36,c:'--commit'},{l:'frozen bkbn, α=1\\n(same weights re-eval)',v:2.389,c:'--flow'}],
     {ymin:2.0,ymax:4.0,grid:[2.5,3.0,3.5],title:'Flow-head FID under joint training',dp:2});
   barChart(document.getElementById('c_edm'),[
     {l:'Euler\\n@200',v:2.308,c:'--flow'},{l:'+jump\\n@200',v:2.229,c:'--commit'},{l:'Heun\\n@200',v:2.229,c:'--ink3'},
