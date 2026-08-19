@@ -10,4 +10,4 @@ paths" — a family interpolating flow matching ↔ mixture/masked generation.
 
 Built on Generator Matching (arXiv 2410.20587), F5-TTS, EPSS, GMFlow.
 All numbers trace to internal reports; evidence grades labeled inline
-(including one preregistered NO_GO).
+(including one preregistered NO_GO)
